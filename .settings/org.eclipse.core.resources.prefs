@@ -1,0 +1,17 @@
+eclipse.preferences.version=1
+encoding//Graph/Edge.py=utf-8
+encoding//Graph/NodeFunction.py=utf-8
+encoding//Testing/Colored_Graph_Testing.py=utf-8
+encoding//Testing/CondizionamentoDecimale.py=utf-8
+encoding//Testing/Experiment.py=utf-8
+encoding//Testing/MaxSumHG.py=utf-8
+encoding//Testing/MaxSumLG.py=utf-8
+encoding//Testing/MaxSumParallelHG.py=utf-8
+encoding//Testing/MaxSumParallelHGMaxHop.py=utf-8
+encoding//Testing/MaxSumParallelLG.py=utf-8
+encoding//Testing/NotColored_Graph_Testing.py=utf-8
+encoding//maxsum/Agent.py=utf-8
+encoding//messages/MailMan.py=utf-8
+encoding//operation/MSumOperator.py=utf-8
+encoding//solver/MaxSum.py=utf-8
+encoding//system/COP_Instance.py=utf-8
