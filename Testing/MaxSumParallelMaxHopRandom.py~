@@ -19,6 +19,7 @@ import argparse
 from copy import deepcopy
 
 import time
+import Queue
 
 sys.path.append(os.path.abspath('../maxsum/'))
 sys.path.append(os.path.abspath('../solver/'))
@@ -65,8 +66,8 @@ def main():
     '''
         location of FactorGraph report
     '''
-    infoGraphPathFile = args.reportFactorGraph
-      
+    infoGraphPathFile = args.reportFactorGraph 
+         
     '''
         location of Charts
     '''
@@ -114,15 +115,17 @@ def main():
     
     averageValuesInstances= list()
 
+    varSet = (0.1 * nVariables)
+
     '''
 	create directories
     '''
-    if not os.path.exists("MaxSumHG/"):
-	os.makedirs("MaxSumHG/")
-	if not os.path.exists("MaxSumHG/Charts/"):
-    	   os.makedirs("MaxSumHG/Charts/")
-	if not os.path.exists("MaxSumHG/FactorGraph/"):
-    	   os.makedirs("MaxSumHG/FactorGraph/")
+    if not os.path.exists("MaxSumParallelMaxHopRandom/"):
+	os.makedirs("MaxSumParallelMaxHopRandom/")
+	if not os.path.exists("MaxSumParallelMaxHopRandom/Charts/"):
+    	   os.makedirs("MaxSumParallelMaxHopRandom/Charts/")
+	if not os.path.exists("MaxSumParallelMaxHopRandom/FactorGraph/"):
+    	   os.makedirs("MaxSumParallelMaxHopRandom/FactorGraph/")
     
     string = "Max Sum\t Average Conflicts\n"
  
@@ -170,7 +173,7 @@ def main():
                     if it isn't the first exec of MaxSum,
                     change the factor graph and repeat the algorithm
                 '''
-                if(going == True):
+                if(going == True):                    
                     '''
                         the agent of the cop
                     '''
@@ -186,141 +189,292 @@ def main():
                     '''
                     functions = core.getCop().getNodeFunctions()
                     
-                    IDhighestGrade = (core.getCop()).getFactorGraph().getHighestGrade()
+                    graph = dict()
                     
-                    '''
-                       find the variable with highest grade
-                    '''
-                    variableToRemove = variables[IDhighestGrade]
-                     
-                    print('variableToRemove:', variableToRemove.toString())
-                     
-                    '''
-                        state of variable i
-                    '''
-                    state = variableToRemove.getStateArgument()
-                     
-                    print('state of variable:', variableToRemove.toString(), state.getValue())
+                    hop = dict()
                     
-                    index = getIndex(originalCop,variableToRemove)
-                    '''
-                        save the value of the variable
-                    '''
-                    finalAssignaments[index] = state.getValue()
-                     
-                    oldAssignaments[index] = finalAssignaments[index]
- 
-                    '''
-                        remove the variable on the agent
-                    '''
-                    agent.removeNodeVariable(variableToRemove)
-                     
-                    '''
-                        neighbours of variable  
-                    '''
-                    neighbours = (variableToRemove).getNeighbour()
-                     
-                    for function in neighbours:
-                        functions.remove(function)
-                        agent.removeNodeFunction(function)
-                                                                                 
-                    '''
-                        remove the variable from the list
-                    '''
-                    variables.remove(variableToRemove)
-                         
                     for variable in variables:
-                         
-                        n1 = set(neighbours)
-                        n2 = set(variable.getNeighbour())
-                         
-                        if((len(set(n1).intersection(n2))) > 0 ):
-                            
-                            '''
-                                intersection of neighbours
-                            '''
-                            inter = (set(n1).intersection(n2))
-                            
-                            while(len(inter) > 0):
-                            
-                                func = inter.pop()
-                                
-                                '''
-                                    list of the arguments of the function
-                                '''
-                                argumentsOfFunction = list()
-                                 
-                                funId = 0
-                
-                                '''
-                                    there is at least a function
-                                '''
-                                if((len(functions)) > 0):
-                                     funId = ((functions[len(functions) - 1]).getId()) + 1   
-                                else:
-                                     funId = 0
-                                
-                                '''
-                                    creates an unary function linked to the variable
-                                '''
-                                nodefunction = NodeFunction(funId)
-                                 
-                                functionevaluator = TabularFunction()  
-                                nodefunction.setFunction(functionevaluator) 
-                                 
-                                '''
-                                    add this nodefunction to the actual nodevariable's neighbour
-                                '''
-                                variable.addNeighbour(nodefunction)         
-                                '''
-                                    add this variable as nodefunction's neighbour
-                                '''
-                                nodefunction.addNeighbour(variable)
-                                 
-                                '''
-                                    add the variable as an argument of the function
-                                '''    
-                                argumentsOfFunction.append(variable)
-                                
-                                costTable = (func.getFunction()).getCostTable()
-                                
-                                cost = 0
-                                
-                                index = (func.getFunction()).getParameterPosition(variableToRemove)
-                                    
-                                '''
-                                    create the unary function
-                                '''      
-                                for j in range(0, variable.size()):
-                                    
-                                    t = (j)
-                                    
-                                    if(index == 0):     
-                                        cost = costTable[(state.getValue(),j)]
-                                    else:
-                                        cost = costTable[(j,(state.getValue()))]
-                                    '''
-                                        add to the cost function: [parameters -> cost]
-                                    '''
-                                    nodefunction.getFunction().addParametersCost(t, cost) 
-                                    
-                                '''
-                                    add the neighbors of the function node
-                                '''
-                                nodefunction.getFunction().setParameters(argumentsOfFunction)
-                                 
-                                '''
-                                    add the function node
-                                '''
-                                functions.append(nodefunction) 
-                                 
-                                '''
-                                    add the function node to the agent
-                                '''
-                                agent.addNodeFunction(nodefunction)
+                        graph[variable] = list()
+                        '''
+                            for each node function
+                        '''
+                        for f in variable.getNeighbour():
+                            for v in f.getNeighbour():
+                                if((v.getId()) != (variable.getId())):
+                                    graph[variable].append(v)  
+                                    hop[(variable,v)] = float('-inf')              
+                    
+                    for v in range(len(variables)):
+                        for k in range(v+1,len(variables)): 
+                             '''
+                                if there is at least a neighbour
+                             '''
+                             if(len(graph[variable]) > 0):
+                                 '''
+                                    bfs visit with shortest path
+                                 '''    
+                                 shortestPath=list(bfs_shortest_path(graph, variables[v], variables[k]))
     
-                            variable.removeNeighbours(neighbours)
+                                 '''
+                                    if there is a path, update the number of hops
+                                 '''        
+                                 if(len(shortestPath) > 0):    
+                                     hop[(variables[v],variables[k])] = len(shortestPath) - 1         
+                                       
+                    variablesToRemove = list()                   
+                                        
+                    '''
+                        choose a random variable
+                    ''' 
+                    indexRemove = random.randint(0, len(variables) - 1)
+                    
+                    '''
+                        add the random variable to remove
+                    '''
+                    variablesToRemove.append(variables[indexRemove])
+                    
+                    maxHop = float('-inf') 
+                    
+                    v = None
+
+                    '''
+                        find the variable with max distance from random variable
+                    '''
+                    for tuple in hop.keys():
+                        if((tuple[0].getId()) == (variables[indexRemove].getId())):
+                            if(hop[tuple] > maxHop):
+                                maxHop = hop[tuple]
+                                '''
+                                    far variable
+                                '''
+                                v = tuple[1]
+                    
+                    '''
+                        there is a variable with max hop
+                    '''
+                    if(v != None):
+                        '''
+                           add the variable more far
+                        '''
+                        variablesToRemove.append(v)
+                        
+                        while( (len(variablesToRemove) < varSet) & ((len(variables) - len(variablesToRemove)) > 0) ):
                              
+                            inter = list()
+                            '''
+                                find the intersection
+                            '''
+                            for j in range(1,len(variablesToRemove)):
+                                if(j == 1):
+                                    inter = list(set(graph[variablesToRemove[j-1]]).intersection(set(graph[variablesToRemove[j]])) )
+                                else:
+                                    inter = list(set(inter).intersection(set(graph[variablesToRemove[j]])))
+                            
+                            liste = list()
+                            
+                            '''
+                                intersection not empty
+                            '''
+                            if(len(inter) > 0):
+                            
+                                k = 0
+                                
+                                while(k < len(variablesToRemove)):
+                                    
+                                    list1 = list()
+                                    
+                                    for n in inter:
+                                        list1.append(hop[(variablesToRemove[k],n)])
+                                    
+                                    liste.append(list1)
+                                    
+                                    k = k + 1
+
+                                '''
+                                    sum the distances between variables
+                                '''   
+                                content = [sum(x) for x in zip(*liste)]
+                                
+                                maxHopIndex = content.index(max(content))
+
+                                '''
+                                    add the variable more far
+                                '''
+                                variablesToRemove.append(inter[maxHopIndex])
+                            else:
+                                '''
+                                    remaining variables to choose
+                                '''
+                                diff = list(set(variables) - set(variablesToRemove))
+                                
+                                while( (len(variablesToRemove) < varSet) & (len(diff) > 0) ):
+                                     '''
+                                         choose random variables
+                                     '''
+                                     indexRemove = random.randint(0, len(diff) - 1)
+                                    
+                                     '''
+                                         add the random variable
+                                     '''
+                                     variablesToRemove.append(diff[indexRemove])
+                                     
+                                     diff.remove(diff[indexRemove])
+                                     
+                    else:                        
+                        '''
+                            remaining variables to choose
+                        '''
+                        diff = list(set(variables) - set(variablesToRemove))
+                        
+                        while( ((len(variablesToRemove) < varSet) & (len(diff) > 0) ) ):
+                                 '''
+                                    choose random variables
+                                 '''
+                                 indexRemove = random.randint(0, len(diff) - 1)
+                                    
+                                 '''
+                                    add the random variable
+                                 '''
+                                 variablesToRemove.append(diff[indexRemove])
+                                     
+                                 diff.remove(diff[indexRemove])
+                                              
+                    
+                    for j in range(len(variablesToRemove)):     
+                        '''
+                            state of variable i
+                        '''
+                        state = variablesToRemove[j].getStateArgument()
+                         
+                        print('state of variable:', variablesToRemove[j].toString(), state.getValue())
+                        
+                        index = getIndex(originalCop,variablesToRemove[j])
+                        '''
+                            save the value of the variable
+                        '''
+                        finalAssignaments[index] = state.getValue()
+                         
+                        oldAssignaments[index] = finalAssignaments[index]
+                    
+                    
+                    for var in variablesToRemove:
+                        '''
+                            remove the variable on the agent
+                        '''
+                        agent.removeNodeVariable(var)
+                     
+                    for var in variablesToRemove:
+                        '''
+                            neighbours of variable  
+                        '''
+                        neighbours = var.getNeighbour()
+                         
+                        for function in neighbours:
+                            functions.remove(function)
+                            agent.removeNodeFunction(function)
+                                                                                 
+                        '''
+                            remove the variable from the list
+                        '''
+                        variables.remove(var)
+                             
+                        for variable in variables:
+                             
+                            n1 = set(neighbours)
+                            n2 = set(variable.getNeighbour())
+                             
+                            if((len(set(n1).intersection(n2))) > 0 ):
+                                
+                                '''
+                                    intersection of neighbours
+                                '''
+                                inter = (set(n1).intersection(n2))
+                                
+                                while(len(inter) > 0):
+                                
+                                    func = inter.pop()
+                                    
+                                    '''
+                                        list of the arguments of the function
+                                    '''
+                                    argumentsOfFunction = list()
+                                     
+                                    funId = 0
+                    
+                                    '''
+                                        there is at least a function
+                                    '''
+                                    if((len(functions)) > 0):
+                                         funId = ((functions[len(functions) - 1]).getId()) + 1   
+                                    else:
+                                         funId = 0
+                                    
+                                    '''
+                                        creates an unary function linked to the variable
+                                    '''
+                                    nodefunction = NodeFunction(funId)
+                                     
+                                    functionevaluator = TabularFunction()  
+                                    nodefunction.setFunction(functionevaluator) 
+                                     
+                                    '''
+                                        add this nodefunction to the actual nodevariable's neighbour
+                                    '''
+                                    variable.addNeighbour(nodefunction)         
+                                    '''
+                                        add this variable as nodefunction's neighbour
+                                    '''
+                                    nodefunction.addNeighbour(variable)
+                                     
+                                    '''
+                                        add the variable as an argument of the function
+                                    '''    
+                                    argumentsOfFunction.append(variable)
+                                    
+                                    costTable = (func.getFunction()).getCostTable()
+                                    
+                                    cost = 0
+                                    
+                                    '''
+                                        state of variableToRemove
+                                    '''
+                                    state = var.getStateArgument()
+                                    
+                                    index = (func.getFunction()).getParameterPosition(var)
+                                        
+                                    '''
+                                        create the unary function
+                                    '''      
+                                    for j in range(0, variable.size()):
+                                        
+                                        t = (j)
+                                        
+                                        if(index == 0):     
+                                            cost = costTable[(state.getValue(),j)]
+                                        else:
+                                            cost = costTable[(j,(state.getValue()))]
+                                        '''
+                                            add to the cost function: [parameters -> cost]
+                                        '''
+                                        nodefunction.getFunction().addParametersCost(t, cost) 
+                                        
+                                    '''
+                                        add the neighbors of the function node
+                                    '''
+                                    nodefunction.getFunction().setParameters(argumentsOfFunction)
+                                     
+                                    '''
+                                        add the function node
+                                    '''
+                                    functions.append(nodefunction) 
+                                     
+                                    '''
+                                        add the function node to the agent
+                                    '''
+                                    agent.addNodeFunction(nodefunction)
+        
+                                variable.removeNeighbours(neighbours)
+                                 
   
                     if((len(variables) > 0) & (len(functions) > 0)):
                     
@@ -330,7 +484,7 @@ def main():
                                  
                         cop = COP_Instance(variables, functions, agents)
                              
-                        i = i + 1
+                        i = i + varSet
  
                      
                 if((len(variables) > 0) & (len(functions) > 0)):
@@ -369,7 +523,8 @@ def main():
                          
                         for k in range(len(oldVariables)):
                             oldAssignaments[k] = oldVariables[k].getStateIndex()
-                                               
+                                         
+                                
                     actualValue = calculateActualValue(originalCop,oldAssignaments) 
                     
                     averageValues.append(actualValue)
@@ -382,28 +537,48 @@ def main():
                 '''
                 variables = core.getCop().getNodeVariables()
 
+                '''
+                    remaining variables to set
+                '''
                 index = (nVariables - i) - 1
+                
+                k = 0   
+                
+                j = 1
 
-                for j in range(0, index):   
-                    '''
-                        state of variable i
-                    '''
-                    state = (variables[j]).getStateArgument() 
-                    '''
-                        save the value of the variable
-                    '''
-                    finalAssignaments[i] = state.getValue()
-                     
-                    oldAssignaments[i] = finalAssignaments[i]
-                    
-                    actualValue = calculateActualValue(originalCop,oldAssignaments)
-                     
-                    averageValues.append(actualValue)
-                    
-                    iterations.append(len(values))
+                while(j < ((index / varSet) + 1)):   
+                
+                    while(k < (varSet * j)):
+                        '''
+                            state of variable i
+                        '''
+                        state = (variables[k]).getStateArgument() 
+                        '''
+                            save the value of the variable
+                        '''
+                        finalAssignaments[i] = state.getValue()
                          
-                    i = i + j
-            
+                        oldAssignaments[i] = finalAssignaments[i]
+
+                        i = i + k
+                        
+                        k = k + 1
+                        
+                    actualValue = calculateActualValue(originalCop,oldAssignaments)
+                         
+                    averageValues.append(actualValue)
+                        
+                    iterations.append(len(values))
+                    
+                    j = j + 1
+ 
+ 
+            print('\nAssegnamenti MaxSum')
+ 
+            for k in range(len(finalAssignaments)):
+                print('x:', k, 'val:', finalAssignaments[k])
+ 
+ 
             for i in range(len(iterations)):
                 if(i > 0):
                     iterations[i] = iterations[i] + iterations[i-1]
@@ -424,7 +599,8 @@ def main():
             pl.xlabel('Iterations')
             pl.ylabel('Cost')
             pl.plot(x, y)
-            pl.savefig(chartsFile + "MaxSumHG/min/Charts/Chart_RUN_" + str(run) + ".png")
+            #pl.show()
+            pl.savefig(chartsFile + "MaxSumParallelMaxHopRandom/Charts/Chart_RUN_" + str(run) + ".png")
             pl.close()
       
     sumIterations = [sum(x) for x in zip(*iterationsInstances)] 
@@ -450,7 +626,7 @@ def main():
     pl.ylabel('Cost')
     pl.plot(x, y)
     #pl.show()
-    pl.savefig(chartsFile + "MaxSumHG/Charts/AverageAllInstances.png")
+    pl.savefig(chartsFile + "MaxSumParallelMaxHopRandom/Charts/AverageAllInstances.png")
     pl.close()    
     
     string = 'Iteration\tConflict\n'
@@ -458,10 +634,45 @@ def main():
     for i in range(len(sumIterations)):
         string = string + str(sumIterations[i]) + '\t\t' + str(sumValues[i]) + '\n'
             
-    output_file = open(infoGraphPathFile + "MaxSumHG/FactorGraph/reportIterations.txt", "w")
+    output_file = open(infoGraphPathFile + "MaxSumParallelMaxHopRandom/FactorGraph/reportIterations.txt", "w")
     output_file.write(string)
     output_file.write("\n")
     output_file.close()
+    
+# finds shortest path between 2 nodes of a graph using BFS
+def bfs_shortest_path(graph, start, goal):
+    # keep track of explored nodes
+    explored = []
+    # keep track of all the paths to be checked
+    queue = [[start]]
+ 
+    # return path if start is goal
+    if start == goal:
+        return "That was easy! Start = goal"
+ 
+    # keeps looping until all possible paths have been checked
+    while queue:
+        # pop the first path from the queue
+        path = queue.pop(0)
+        # get the last node from the path
+        node = path[-1]
+        if node not in explored:
+            neighbours = graph[node]
+            # go through all neighbour nodes, construct a new path and
+            # push it into the queue
+            for neighbour in neighbours:
+                new_path = list(path)
+                new_path.append(neighbour)
+                queue.append(new_path)
+                # return path if neighbour is goal
+                if neighbour == goal:
+                    return new_path
+ 
+            # mark node as explored
+            explored.append(node)
+ 
+    # in case there's no path between the 2 nodes
+    return []
     
 def getIndex(originalCop, variable):
     variables = originalCop.getNodeVariables()
@@ -470,7 +681,7 @@ def getIndex(originalCop, variable):
         if(((variables[i]).getId()) == variable.getId()):
             return i
             
-    return -1    
+    return -1  
     
 def calculateActualValue(originalCop, oldAssignaments):
      
@@ -716,10 +927,10 @@ def create_DCop(infoGraphPathFile, nVariables, run):
     
     string = string + "\t\t\t\t\t\t\tFACTOR GRAPH\n\n" + str(cop.getFactorGraph().toString())
     
-    '''info_graph_file = open(infoGraphPathFile + "MaxSumHighestGrade/FactorGraph/factor_graph_run_" + str(run) + ".txt", "w")
+    info_graph_file = open(infoGraphPathFile + "MaxSumParallelMaxHopRandom/FactorGraph/factor_graph_run_" + str(run) + ".txt", "w")
     info_graph_file.write(string)
     info_graph_file.write("\n")
-    info_graph_file.close()'''   
+    info_graph_file.close()   
     
     return cop  
 
@@ -748,9 +959,6 @@ def getParser():
     parser.add_argument("-reportFactorGraph", metavar='reportFactorGraph',
                         help="FILE of reportFactorGraph")
     
-    parser.add_argument("-reportCharts", metavar='reportCharts',
-                        help="FILE of reportCharts")
-    
     
     args = parser.parse_args()
 
@@ -762,7 +970,7 @@ def getParser():
         (args.instances > 0 & (not(args.instances == None))) & 
         (args.variables > 0 & (not(args.variables == None))) & 
         (not(args.op == None) & ((args.op == 'max') | (args.op == 'min'))) & (not(args.reportMaxSum == None)) & 
-        (not(args.reportFactorGraph == None)) & (not(args.reportCharts == None))):
+        (not(args.reportFactorGraph == None)) & (not(args.reportCharts == None) )):
         
         return args
     else:
@@ -775,7 +983,7 @@ def printUsage():
     
     description = '\n----------------------------------- MAX SUM ALGORITHM ---------------------------------------\n\n'
     
-    description = description + 'This program is a testing about MaxSumHG technique where each instance'
+    description = description + 'This program is a testing about MaxSumPArallelMaxHopRandom technique where each instance'
     description = description + ' has 10 and many more variables'
     description = description + 'The results are saved as chart (.png) and as log file (.txt)\n'
     
@@ -789,7 +997,6 @@ def printUsage():
     usage = usage + '-op O\t\t\tmax/min (maximization or minimization of conflicts)\n'
     usage = usage + '-reportMaxSum reportM\t\tFILE where writing the report of the MaxSum execution (FILE location with final /)\n'
     usage = usage + '-reportFactorGraph reportG\tFILE where writing the factorGraph and information about MaxSum execution (FILE location with final /)\n'
-    usage = usage + '-reportCharts reportC\t\tFILE where saving the number of conflicts of the MaxSum execution\n\t\t\t\t(FILE location with final /)\n'
     usage = usage + '-h help\tInformation about parameters\n'
     
     print(description)

@@ -5,8 +5,8 @@ Created on 16 Dic 2017
 
 @author: Andrea Montanari
 
-This class is a testing about Experiments.
-The Graphs colored have 50 variables and 10 values in domain. 
+This class is a heuristic technique based on Conditioning method.
+Graphs are randomly generated with 50 variables and 10 values in domain. 
 The results are saved as chart (.png) and as log file (.txt)
 '''
 
@@ -116,6 +116,16 @@ def main():
     averageValuesInstances= list()
 
     varSet = (0.1 * nVariables)
+
+    '''
+	create directories
+    '''
+    if not os.path.exists("MaxSumParallelMaxHopRandom/"):
+	os.makedirs("MaxSumParallelMaxHopRandom/")
+	if not os.path.exists("MaxSumParallelMaxHopRandom/Charts/"):
+    	   os.makedirs("MaxSumParallelMaxHopRandom/Charts/")
+	if not os.path.exists("MaxSumParallelMaxHopRandom/FactorGraph/"):
+    	   os.makedirs("MaxSumParallelMaxHopRandom/FactorGraph/")
     
     string = "Max Sum\t Average Conflicts\n"
  
@@ -590,7 +600,7 @@ def main():
             pl.ylabel('Cost')
             pl.plot(x, y)
             #pl.show()
-            pl.savefig(chartsFile + "MaxSumParallelMaxHopRandom/min/Charts/Chart_RUN_" + str(run) + ".png")
+            pl.savefig(chartsFile + "MaxSumParallelMaxHopRandom/Charts/Chart_RUN_" + str(run) + ".png")
             pl.close()
       
     sumIterations = [sum(x) for x in zip(*iterationsInstances)] 
@@ -616,7 +626,7 @@ def main():
     pl.ylabel('Cost')
     pl.plot(x, y)
     #pl.show()
-    pl.savefig(chartsFile + "MaxSumParallelMaxHopRandom/min/Charts/AverageAllInstances.png")
+    pl.savefig(chartsFile + "MaxSumParallelMaxHopRandom/Charts/AverageAllInstances.png")
     pl.close()    
     
     string = 'Iteration\tConflict\n'
@@ -624,7 +634,7 @@ def main():
     for i in range(len(sumIterations)):
         string = string + str(sumIterations[i]) + '\t\t' + str(sumValues[i]) + '\n'
             
-    output_file = open(infoGraphPathFile + "MaxSumParallelMaxHopRandom/min/FactorGraph/reportIterations.txt", "w")
+    output_file = open(infoGraphPathFile + "MaxSumParallelMaxHopRandom/FactorGraph/reportIterations.txt", "w")
     output_file.write(string)
     output_file.write("\n")
     output_file.close()
@@ -917,10 +927,10 @@ def create_DCop(infoGraphPathFile, nVariables, run):
     
     string = string + "\t\t\t\t\t\t\tFACTOR GRAPH\n\n" + str(cop.getFactorGraph().toString())
     
-    '''info_graph_file = open(infoGraphPathFile + "MaxSumLowestGrade/FactorGraph/factor_graph_run_" + str(run) + ".txt", "w")
+    info_graph_file = open(infoGraphPathFile + "MaxSumParallelMaxHopRandom/FactorGraph/factor_graph_run_" + str(run) + ".txt", "w")
     info_graph_file.write(string)
     info_graph_file.write("\n")
-    info_graph_file.close()'''   
+    info_graph_file.close()   
     
     return cop  
 
@@ -949,9 +959,6 @@ def getParser():
     parser.add_argument("-reportFactorGraph", metavar='reportFactorGraph',
                         help="FILE of reportFactorGraph")
     
-    parser.add_argument("-reportCharts", metavar='reportCharts',
-                        help="FILE of reportCharts")
-    
     
     args = parser.parse_args()
 
@@ -963,7 +970,7 @@ def getParser():
         (args.instances > 0 & (not(args.instances == None))) & 
         (args.variables > 0 & (not(args.variables == None))) & 
         (not(args.op == None) & ((args.op == 'max') | (args.op == 'min'))) & (not(args.reportMaxSum == None)) & 
-        (not(args.reportFactorGraph == None)) & (not(args.reportCharts == None))):
+        (not(args.reportFactorGraph == None)) & (not(args.reportCharts == None) )):
         
         return args
     else:
@@ -976,12 +983,8 @@ def printUsage():
     
     description = '\n----------------------------------- MAX SUM ALGORITHM ---------------------------------------\n\n'
     
-    description = description + 'This program is a testing about NotColored Graphs, 3-colorability.\nThe colored Graphs'
-    description = description + ' have 10 and many more variables.\nThe aim is to analyze the average of the rmessages'
-    description = description + 'differences which tends to 0,\nand that the number of conflicts tends to 0.\n'
-    description = description + 'The results are: report about the average of the rmessages differences,\n' 
-    description = description + 'factor graph of Dcop, the charts about the average of the rmessages differences\n'
-    description = description + 'and the conflicts during the iterations.\n'
+    description = description + 'This program is a testing about MaxSumParallelMaxHopRandom technique where each instance'
+    description = description + ' has 10 and many more variables'
     description = description + 'The results are saved as chart (.png) and as log file (.txt)\n'
     
     usage = 'All parameters ARE REQUIRED!!\n\n'
@@ -994,7 +997,6 @@ def printUsage():
     usage = usage + '-op O\t\t\tmax/min (maximization or minimization of conflicts)\n'
     usage = usage + '-reportMaxSum reportM\t\tFILE where writing the report of the MaxSum execution (FILE location with final /)\n'
     usage = usage + '-reportFactorGraph reportG\tFILE where writing the factorGraph and information about MaxSum execution (FILE location with final /)\n'
-    usage = usage + '-reportCharts reportC\t\tFILE where saving the average of the rmessagesdifferences and the number of conflicts of the MaxSum execution\n\t\t\t\t(FILE location with final /)\n'
     usage = usage + '-h help\tInformation about parameters\n'
     
     print(description)
